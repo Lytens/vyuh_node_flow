@@ -42,6 +42,7 @@ class NodeContainer<T> extends StatelessWidget {
     this.shape,
     this.portBuilder,
     this.onTap,
+    this.onTapDown,
     this.onDoubleTap,
     this.onContextMenu,
     this.onMouseEnter,
@@ -67,8 +68,12 @@ class NodeContainer<T> extends StatelessWidget {
   /// Optional builder for customizing individual port widgets.
   final PortBuilder<T>? portBuilder;
 
-  /// Callback invoked when the node is tapped.
+  /// Callback invoked when the node is tapped (pointer released without dragging).
   final VoidCallback? onTap;
+
+  /// Callback invoked on pointer down, before the gesture resolves to a tap
+  /// or drag. Used for instant selection feedback.
+  final VoidCallback? onTapDown;
 
   /// Callback invoked when the node is double-tapped.
   final VoidCallback? onDoubleTap;
@@ -171,6 +176,7 @@ class NodeContainer<T> extends StatelessWidget {
                     onDragEnd: (_) => controller.endNodeDrag(),
                     // Interaction callbacks
                     onTap: onTap,
+                    onTapDown: onTapDown,
                     onDoubleTap: onDoubleTap,
                     onContextMenu: onContextMenu,
                     onMouseEnter: onMouseEnter,

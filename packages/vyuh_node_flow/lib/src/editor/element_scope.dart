@@ -43,7 +43,7 @@ import 'non_trackpad_pan_gesture_recognizer.dart';
 ///
 /// ```
 /// ElementScope (StatefulWidget)
-/// └── Listener (immediate tap feedback, pointer ID tracking)
+/// └── Listener (tap-down feedback, tap detection, pointer ID tracking)
 ///     └── RawGestureDetector (drag, double-tap, context menu)
 ///         └── MouseRegion (cursor, hover callbacks)
 ///             └── child (provided by parent)
@@ -57,7 +57,8 @@ import 'non_trackpad_pan_gesture_recognizer.dart';
 ///   onDragStart: (_) => controller.startNodeDrag(nodeId),
 ///   onDragUpdate: (details) => controller.moveNodeDrag(details.delta),
 ///   onDragEnd: (_) => controller.endNodeDrag(),
-///   onTap: () => controller.selectNode(nodeId),
+///   onTapDown: () => controller.selectNode(nodeId), // instant feedback
+///   onTap: () => events.onNodeTap(node), // fires only if no drag happened
 ///   cursor: SystemMouseCursors.grab,
 ///   child: NodeVisual(...),
 /// )
@@ -119,6 +120,7 @@ class ElementScope extends StatefulWidget {
     this.allowTouchPanGesture = false,
     this.dragStartBehavior = DragStartBehavior.start,
     this.onTap,
+    this.onTapDown,
     this.onDoubleTap,
     this.onContextMenu,
     this.onMouseEnter,
@@ -224,9 +226,17 @@ class ElementScope extends StatefulWidget {
 
   /// Called when the element is tapped.
   ///
-  /// Fires immediately on pointer down (before gesture arena resolution)
-  /// for instant selection feedback.
+  /// Fires on pointer up, and only when the pointer never moved beyond the
+  /// tap slop — a gesture that becomes a drag does not fire this callback.
+  /// For instant pointer-down feedback (e.g., selection), use [onTapDown].
   final VoidCallback? onTap;
+
+  /// Called immediately on pointer down, before gesture arena resolution.
+  ///
+  /// Fires for every press, including one that later becomes a drag. Use this
+  /// for instant feedback such as selection, and [onTap] for actions that
+  /// should only happen on a confirmed tap (e.g., user-facing tap events).
+  final VoidCallback? onTapDown;
 
   /// Called when the element is double-tapped.
   final VoidCallback? onDoubleTap;
@@ -333,10 +343,25 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
   Offset? _lastTouchLocal;
   bool _touchDragStarted = false;
 
+  // Tap tracking: onTap fires on pointer up only if the pointer stayed within
+  // the tap slop for the whole gesture (otherwise it was a drag, not a tap).
+  Offset? _tapDownPosition;
+  double _tapSlop = kTouchSlop;
+  bool _movedBeyondTapSlop = false;
+
   bool _isTouchLike(PointerEvent event) {
     return event.kind == PointerDeviceKind.touch ||
         event.kind == PointerDeviceKind.stylus ||
         event.kind == PointerDeviceKind.invertedStylus;
+  }
+
+  /// The movement threshold that disqualifies a gesture from being a tap.
+  ///
+  /// Matches the thresholds used to start a drag so that tap and drag are
+  /// mutually exclusive: the touch path starts drags at [kTouchSlop], while
+  /// the pan recognizer uses the framework pan slop for precise pointers.
+  double _tapSlopFor(PointerDownEvent event) {
+    return _isTouchLike(event) ? kTouchSlop : computePanSlop(event.kind, null);
   }
 
   // ---------------------------------------------------------------------------
@@ -473,7 +498,12 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
     }
   }
 
-  /// Called on pointer up to check if the drag should end.
+  /// Called on pointer up to fire [ElementScope.onTap] for confirmed taps
+  /// and to check if the drag should end.
+  ///
+  /// A tap is confirmed only when the pointer that went down on this element
+  /// releases without ever moving beyond the tap slop — this is what keeps
+  /// drags from also firing the tap callback.
   ///
   /// Only ends the drag if the pointer that started the drag is the one ending.
   /// This is purely based on pointer ID matching - device kind doesn't matter.
@@ -486,6 +516,16 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
   /// Note: This is treated as a cancel because we don't have proper DragEndDetails
   /// from a pointer up event outside the gesture recognizer flow.
   void _handlePointerUp(PointerUpEvent event) {
+    // Confirmed tap: the pointer that pressed this element released without
+    // moving beyond the tap slop. Fired before drag cleanup to preserve the
+    // tap-before-drag-end ordering of DragStartBehavior.down elements (ports).
+    if (_tapDownPosition != null && event.pointer == _pendingPointerId) {
+      if (!_movedBeyondTapSlop) {
+        widget.onTap?.call();
+      }
+      _tapDownPosition = null;
+    }
+
     // If we locked the canvas on touch down but never started a drag,
     // release the lock now.
     if (_preDragLock && !_isDragging) {
@@ -532,7 +572,8 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
       behavior: HitTestBehavior.translucent,
       // Listener fires IMMEDIATELY on pointer down, before gesture arena.
       // We capture the pointer ID here for use when the drag starts.
-      // This also provides instant tap feedback (e.g., selection).
+      // This also provides instant tap-down feedback (e.g., selection) via
+      // onTapDown; onTap itself fires on pointer up only for confirmed taps.
       //
       // IMPORTANT: We only capture the pointer ID if we're not already dragging.
       // If a drag is in progress, a second pointer (any device) should not
@@ -550,7 +591,10 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
         }
 
         _pendingPointerId = event.pointer;
-        widget.onTap?.call();
+        _tapDownPosition = event.position;
+        _tapSlop = _tapSlopFor(event);
+        _movedBeyondTapSlop = false;
+        widget.onTapDown?.call();
 
         // Touch drag tracking (pointer-based) to avoid gesture arena conflicts.
         if (_isTouchLike(event) &&
@@ -587,6 +631,17 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
         }
       },
       onPointerMove: (event) {
+        // Tap detection: any movement beyond the slop disqualifies this
+        // gesture from firing onTap on release. Tracked for ALL device kinds
+        // (the touch guard below only applies to the touch drag path).
+        final tapDownPosition = _tapDownPosition;
+        if (tapDownPosition != null &&
+            !_movedBeyondTapSlop &&
+            event.pointer == _pendingPointerId &&
+            (event.position - tapDownPosition).distance > _tapSlop) {
+          _movedBeyondTapSlop = true;
+        }
+
         if (!_isTouchLike(event)) return;
         if (_touchPointerId == null || event.pointer != _touchPointerId) {
           return;
@@ -628,6 +683,10 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
         );
       },
       onPointerCancel: (event) {
+        // A cancelled pointer can never become a tap.
+        if (event.pointer == _pendingPointerId) {
+          _tapDownPosition = null;
+        }
         if (_touchPointerId != null && event.pointer == _touchPointerId) {
           _touchPointerId = null;
           _touchStartLocal = null;

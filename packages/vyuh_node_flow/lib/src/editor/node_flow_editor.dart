@@ -648,6 +648,7 @@ class _NodeFlowEditorState<T, C> extends State<NodeFlowEditor<T, C>>
                                   portBuilder: widget.portBuilder,
                                   thumbnailBuilder: widget.thumbnailBuilder,
                                   onNodeTap: _handleNodeTap,
+                                  onNodeTapDown: _handleNodeTapDown,
                                   onNodeDoubleTap: _handleNodeDoubleTap,
                                   onNodeContextMenu: _handleNodeContextMenu,
                                   onNodeMouseEnter: _handleNodeMouseEnter,
@@ -717,6 +718,7 @@ class _NodeFlowEditorState<T, C> extends State<NodeFlowEditor<T, C>>
                                   portBuilder: widget.portBuilder,
                                   thumbnailBuilder: widget.thumbnailBuilder,
                                   onNodeTap: _handleNodeTap,
+                                  onNodeTapDown: _handleNodeTapDown,
                                   onNodeDoubleTap: _handleNodeDoubleTap,
                                   onNodeContextMenu: _handleNodeContextMenu,
                                   onNodeMouseEnter: _handleNodeMouseEnter,
@@ -748,6 +750,7 @@ class _NodeFlowEditorState<T, C> extends State<NodeFlowEditor<T, C>>
                                   portBuilder: widget.portBuilder,
                                   thumbnailBuilder: widget.thumbnailBuilder,
                                   onNodeTap: _handleNodeTap,
+                                  onNodeTapDown: _handleNodeTapDown,
                                   onNodeDoubleTap: _handleNodeDoubleTap,
                                   onNodeContextMenu: _handleNodeContextMenu,
                                   onNodeMouseEnter: _handleNodeMouseEnter,
@@ -1197,7 +1200,8 @@ class _NodeFlowEditorState<T, C> extends State<NodeFlowEditor<T, C>>
 
     switch (hitResult.hitType) {
       // Node selection is handled by widget-level handlers:
-      // - _handleNodeTap for tap gestures
+      // - _handleNodeTapDown for instant selection on pointer down
+      // - _handleNodeTap for confirmed taps (fires the user tap event)
       // - startNodeDrag for drag gestures (selects if not already selected)
       // This includes GroupNode and CommentNode which are now regular nodes.
       // Pan is already disabled above for nodes, so just break here.

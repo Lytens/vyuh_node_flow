@@ -15,11 +15,13 @@ extension _WidgetGestureHandlers<T, C> on _NodeFlowEditorState<T, C> {
   // Node Gesture Handlers
   // ============================================================
 
-  /// Handles node tap - selects the node with modifier key support.
+  /// Handles pointer-down on a node - selects the node with modifier key
+  /// support, giving instant feedback before the gesture resolves to a tap
+  /// or a drag.
   ///
-  /// Preserves multi-selection when clicking on an already-selected node
+  /// Preserves multi-selection when pressing an already-selected node
   /// without modifier keys, allowing drag of multiple nodes together.
-  void _handleNodeTap(Node<T> node) {
+  void _handleNodeTapDown(Node<T> node) {
     // Ensure canvas has PRIMARY focus for keyboard shortcuts to work
     if (!widget.controller.canvasFocusNode.hasPrimaryFocus) {
       widget.controller.canvasFocusNode.requestFocus();
@@ -37,8 +39,14 @@ extension _WidgetGestureHandlers<T, C> on _NodeFlowEditorState<T, C> {
     if (!isAlreadySelected || toggle) {
       widget.controller.selectNode(node.id, toggle: toggle);
     }
+  }
 
-    // Fire user callback
+  /// Handles a confirmed node tap (pointer released without dragging).
+  ///
+  /// Selection already happened on pointer-down via [_handleNodeTapDown];
+  /// this only fires the user-facing tap event, so dragging a node does not
+  /// emit a spurious tap.
+  void _handleNodeTap(Node<T> node) {
     widget.controller.events.node?.onTap?.call(node);
   }
 

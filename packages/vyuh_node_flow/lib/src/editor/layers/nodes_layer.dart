@@ -39,6 +39,7 @@ class NodesLayer<T> extends StatelessWidget {
     this.portBuilder,
     this.layerFilter,
     this.onNodeTap,
+    this.onNodeTapDown,
     this.onNodeDoubleTap,
     this.onNodeContextMenu,
     this.onNodeMouseEnter,
@@ -58,6 +59,7 @@ class NodesLayer<T> extends StatelessWidget {
     PortBuilder<T>? portBuilder,
     ThumbnailBuilder<T>? thumbnailBuilder,
     void Function(Node<T> node)? onNodeTap,
+    void Function(Node<T> node)? onNodeTapDown,
     void Function(Node<T> node)? onNodeDoubleTap,
     void Function(Node<T> node, ScreenPosition screenPosition)?
     onNodeContextMenu,
@@ -74,6 +76,7 @@ class NodesLayer<T> extends StatelessWidget {
       thumbnailBuilder: thumbnailBuilder,
       layerFilter: NodeRenderLayer.background,
       onNodeTap: onNodeTap,
+      onNodeTapDown: onNodeTapDown,
       onNodeDoubleTap: onNodeDoubleTap,
       onNodeContextMenu: onNodeContextMenu,
       onNodeMouseEnter: onNodeMouseEnter,
@@ -93,6 +96,7 @@ class NodesLayer<T> extends StatelessWidget {
     PortBuilder<T>? portBuilder,
     ThumbnailBuilder<T>? thumbnailBuilder,
     void Function(Node<T> node)? onNodeTap,
+    void Function(Node<T> node)? onNodeTapDown,
     void Function(Node<T> node)? onNodeDoubleTap,
     void Function(Node<T> node, ScreenPosition screenPosition)?
     onNodeContextMenu,
@@ -109,6 +113,7 @@ class NodesLayer<T> extends StatelessWidget {
       thumbnailBuilder: thumbnailBuilder,
       layerFilter: NodeRenderLayer.middle,
       onNodeTap: onNodeTap,
+      onNodeTapDown: onNodeTapDown,
       onNodeDoubleTap: onNodeDoubleTap,
       onNodeContextMenu: onNodeContextMenu,
       onNodeMouseEnter: onNodeMouseEnter,
@@ -128,6 +133,7 @@ class NodesLayer<T> extends StatelessWidget {
     PortBuilder<T>? portBuilder,
     ThumbnailBuilder<T>? thumbnailBuilder,
     void Function(Node<T> node)? onNodeTap,
+    void Function(Node<T> node)? onNodeTapDown,
     void Function(Node<T> node)? onNodeDoubleTap,
     void Function(Node<T> node, ScreenPosition screenPosition)?
     onNodeContextMenu,
@@ -144,6 +150,7 @@ class NodesLayer<T> extends StatelessWidget {
       thumbnailBuilder: thumbnailBuilder,
       layerFilter: NodeRenderLayer.foreground,
       onNodeTap: onNodeTap,
+      onNodeTapDown: onNodeTapDown,
       onNodeDoubleTap: onNodeDoubleTap,
       onNodeContextMenu: onNodeContextMenu,
       onNodeMouseEnter: onNodeMouseEnter,
@@ -169,8 +176,12 @@ class NodesLayer<T> extends StatelessWidget {
   /// - [NodesLayer.foreground] for foreground layer nodes
   final NodeRenderLayer? layerFilter;
 
-  /// Callback invoked when a node is tapped.
+  /// Callback invoked when a node is tapped (pointer released without dragging).
   final void Function(Node<T> node)? onNodeTap;
+
+  /// Callback invoked on pointer down on a node, before the gesture resolves
+  /// to a tap or drag. Used for instant selection feedback.
+  final void Function(Node<T> node)? onNodeTapDown;
 
   /// Callback invoked when a node is double-tapped.
   final void Function(Node<T> node)? onNodeDoubleTap;
@@ -279,6 +290,7 @@ class NodesLayer<T> extends StatelessWidget {
       portBuilder: portBuilder,
       // Event callbacks
       onTap: onNodeTap != null ? () => onNodeTap!(node) : null,
+      onTapDown: onNodeTapDown != null ? () => onNodeTapDown!(node) : null,
       onDoubleTap: onNodeDoubleTap != null
           ? () => onNodeDoubleTap!(node)
           : null,
