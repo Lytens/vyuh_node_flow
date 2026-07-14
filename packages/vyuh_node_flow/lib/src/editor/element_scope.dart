@@ -358,11 +358,17 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
   /// The movement threshold that disqualifies a gesture from being a tap.
   ///
   /// The touch path starts drags with zero slop (instant tracking), so this
-  /// is what arbitrates tap vs drag on release: within [kTouchSlop] the drag
-  /// is cancelled (reverted) and onTap fires; beyond it the drag commits.
-  /// Precise pointers use the framework pan slop.
+  /// is what arbitrates tap vs drag on release: within [_touchTapSlop] the
+  /// drag is cancelled (reverted) and onTap fires; beyond it the drag
+  /// commits. Kept tight (5px, matching the pre-0.4 editor) so small
+  /// deliberate drags commit instead of springing back. Precise pointers
+  /// use the framework pan slop.
+  static const _touchTapSlop = 5.0;
+
   double _tapSlopFor(PointerDownEvent event) {
-    return _isTouchLike(event) ? kTouchSlop : computePanSlop(event.kind, null);
+    return _isTouchLike(event)
+        ? _touchTapSlop
+        : computePanSlop(event.kind, null);
   }
 
   // ---------------------------------------------------------------------------
