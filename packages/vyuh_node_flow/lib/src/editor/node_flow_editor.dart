@@ -1138,9 +1138,13 @@ class _NodeFlowEditorState<T, C> extends State<NodeFlowEditor<T, C>>
     // This prevents InteractiveViewer from competing for drag gestures in the gesture arena.
     // Canvas will be unlocked in _handlePointerUp or by the operation's end handler.
     //
+    // Skip the lock when the element cannot start a drag (e.g. inspect mode) -
+    // the gesture should pan the viewport instead.
+    //
     // Only capture pointer ID if we're not already tracking a drag pointer.
     // This prevents a second pointer from overwriting the original drag pointer.
-    if (hitResult.isNode || hitResult.isPort) {
+    if ((hitResult.isNode && widget.behavior.canDrag) ||
+        (hitResult.isPort && widget.behavior.canCreate)) {
       widget.controller._updateInteractionState(canvasLocked: true);
       // Only set drag pointer if not already set (first pointer wins)
       _dragPointerId ??= event.pointer;

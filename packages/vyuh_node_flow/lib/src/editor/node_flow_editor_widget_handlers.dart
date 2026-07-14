@@ -15,18 +15,22 @@ extension _WidgetGestureHandlers<T, C> on _NodeFlowEditorState<T, C> {
   // Node Gesture Handlers
   // ============================================================
 
-  /// Handles pointer-down on a node - selects the node with modifier key
-  /// support, giving instant feedback before the gesture resolves to a tap
-  /// or a drag.
-  ///
-  /// Preserves multi-selection when pressing an already-selected node
-  /// without modifier keys, allowing drag of multiple nodes together.
+  /// Handles pointer-down on a node - ensures the canvas has focus before
+  /// the gesture resolves to a tap or a drag.
   void _handleNodeTapDown(Node<T> node) {
     // Ensure canvas has PRIMARY focus for keyboard shortcuts to work
     if (!widget.controller.canvasFocusNode.hasPrimaryFocus) {
       widget.controller.canvasFocusNode.requestFocus();
     }
+  }
 
+  /// Handles a confirmed node tap (pointer released without dragging) -
+  /// selects the node with modifier key support and fires the tap event.
+  /// A drag never selects here; dragging a node selects via startNodeDrag.
+  ///
+  /// Preserves multi-selection when tapping an already-selected node
+  /// without modifier keys.
+  void _handleNodeTap(Node<T> node) {
     final isCmd = HardwareKeyboard.instance.isMetaPressed;
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
     final toggle = isCmd || isCtrl;
@@ -39,14 +43,7 @@ extension _WidgetGestureHandlers<T, C> on _NodeFlowEditorState<T, C> {
     if (!isAlreadySelected || toggle) {
       widget.controller.selectNode(node.id, toggle: toggle);
     }
-  }
 
-  /// Handles a confirmed node tap (pointer released without dragging).
-  ///
-  /// Selection already happened on pointer-down via [_handleNodeTapDown];
-  /// this only fires the user-facing tap event, so dragging a node does not
-  /// emit a spurious tap.
-  void _handleNodeTap(Node<T> node) {
     widget.controller.events.node?.onTap?.call(node);
   }
 
