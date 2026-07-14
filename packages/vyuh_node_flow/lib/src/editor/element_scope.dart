@@ -357,9 +357,10 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
 
   /// The movement threshold that disqualifies a gesture from being a tap.
   ///
-  /// Matches the thresholds used to start a drag so that tap and drag are
-  /// mutually exclusive: the touch path starts drags at [kTouchSlop], while
-  /// the pan recognizer uses the framework pan slop for precise pointers.
+  /// The touch path starts drags with zero slop (instant tracking), so this
+  /// is what arbitrates tap vs drag on release: within [kTouchSlop] the drag
+  /// is cancelled (reverted) and onTap fires; beyond it the drag commits.
+  /// Precise pointers use the framework pan slop.
   double _tapSlopFor(PointerDownEvent event) {
     return _isTouchLike(event) ? kTouchSlop : computePanSlop(event.kind, null);
   }
@@ -536,13 +537,22 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
     // Touch pointer-based drag end (bypasses gesture arena).
     if (_touchPointerId != null && event.pointer == _touchPointerId) {
       if (_touchDragStarted) {
-        _endDrag(
-          DragEndDetails(
-            velocity: Velocity(pixelsPerSecond: event.delta),
-            primaryVelocity:
-                event.delta.distance == 0 ? null : event.delta.distance,
-          ),
-        );
+        if (!_movedBeyondTapSlop &&
+            widget.onTap != null &&
+            widget.dragStartBehavior != DragStartBehavior.down) {
+          // Confirmed tap on a zero-slop drag element: cancel so the element
+          // reverts the few pixels it tracked the finger, instead of ending
+          // displaced next to the tap.
+          _cancelDrag();
+        } else {
+          _endDrag(
+            DragEndDetails(
+              velocity: Velocity(pixelsPerSecond: event.delta),
+              primaryVelocity:
+                  event.delta.distance == 0 ? null : event.delta.distance,
+            ),
+          );
+        }
       }
       _touchPointerId = null;
       _touchStartLocal = null;
@@ -652,17 +662,10 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
         if (startLocal == null || lastLocal == null) return;
 
         if (!_touchDragStarted) {
-          final slop =
-              widget.dragStartBehavior == DragStartBehavior.down
-                  ? 0.0
-                  : kTouchSlop;
-          if ((event.localPosition - startLocal).distance < slop) {
-            // Keep the delta baseline current while waiting for the slop, so
-            // the accumulated slop distance isn't replayed as one large delta
-            // (a visible jump) on the first drag update.
-            _lastTouchLocal = event.localPosition;
-            return;
-          }
+          // Zero slop: the element tracks the finger from the very first
+          // move. Tap stays safe because a release within the tap slop
+          // cancels the drag (reverting the few pixels moved) before firing
+          // onTap — see _handlePointerUp.
           _touchDragStarted = true;
           _startDrag(
             DragStartDetails(

@@ -174,6 +174,11 @@ class NodeContainer<T> extends StatelessWidget {
                     onDragUpdate: (details) =>
                         controller.moveNodeDrag(details.delta),
                     onDragEnd: (_) => controller.endNodeDrag(),
+                    // Revert positions on cancel (e.g. a touch gesture that
+                    // resolved to a tap) so a tap never displaces the node.
+                    onDragCancel: () => controller.cancelNodeDrag(
+                      controller.interaction.dragStartPositions,
+                    ),
                     // Interaction callbacks
                     onTap: onTap,
                     onTapDown: onTapDown,
