@@ -363,7 +363,7 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
   /// commits. Kept tight (5px, matching the pre-0.4 editor) so small
   /// deliberate drags commit instead of springing back. Precise pointers
   /// use the framework pan slop.
-  static const _touchTapSlop = 5.0;
+  static const _touchTapSlop = 2.0;
 
   double _tapSlopFor(PointerDownEvent event) {
     return _isTouchLike(event)
