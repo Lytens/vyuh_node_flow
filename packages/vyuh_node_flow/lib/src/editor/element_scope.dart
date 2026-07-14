@@ -657,6 +657,10 @@ class _ElementScopeState extends State<ElementScope> with AutoPanMixin {
                   ? 0.0
                   : kTouchSlop;
           if ((event.localPosition - startLocal).distance < slop) {
+            // Keep the delta baseline current while waiting for the slop, so
+            // the accumulated slop distance isn't replayed as one large delta
+            // (a visible jump) on the first drag update.
+            _lastTouchLocal = event.localPosition;
             return;
           }
           _touchDragStarted = true;
